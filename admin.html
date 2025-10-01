@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hanti Admin Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+            min-height: 100vh;
+        }
+        
+        .admin-header {
+            background: white;
+            padding: 1.5rem 2rem;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+        
+        .admin-logo {
+            height: 40px;
+        }
+        
+        .admin-title {
+            color: #16a34a;
+            font-size: 1.5rem;
+            font-weight: 700;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 2rem auto;
+            padding: 0 2rem;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        
+        .stat-card {
+            background: white;
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+        
+        .stat-icon {
+            width: 60px;
+            height: 60px;
+            background: #16a34a;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 1rem;
+        }
+        
+        .stat-icon i {
+            color: white;
+            font-size: 1.5rem;
+        }
+        
+        .stat-number {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #1f2937;
+            margin-bottom: 0.5rem;
+        }
+        
+        .stat-label {
+            color: #6b7280;
+            font-weight: 500;
+        }
+        
+        .data-section {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+        
+        .section-header {
+            padding: 1.5rem 2rem;
+            border-bottom: 1px solid #e5e7eb;
+            display: flex;
+            justify-content: between;
+            align-items: center;
+        }
+        
+        .section-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: #1f2937;
+        }
+        
+        .export-btn {
+            background: #16a34a;
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background 0.3s ease;
+        }
+        
+        .export-btn:hover {
+            background: #15803d;
+        }
+        
+        .filter-bar {
+            padding: 1rem 2rem;
+            background: #f9fafb;
+            border-bottom: 1px solid #e5e7eb;
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+        
+        .filter-select {
+            padding: 0.5rem;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 0.9rem;
+        }
+        
+        .email-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        .email-table th,
+        .email-table td {
+            text-align: left;
+            padding: 1rem 2rem;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        
+        .email-table th {
+            background: #f9fafb;
+            font-weight: 600;
+            color: #374151;
+        }
+        
+        .role-badge {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            text-transform: uppercase;
+        }
+        
+        .role-buyer {
+            background: #dbeafe;
+            color: #1d4ed8;
+        }
+        
+        .role-seller {
+            background: #fef3c7;
+            color: #d97706;
+        }
+        
+        .role-investor {
+            background: #e0e7ff;
+            color: #7c3aed;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 2rem;
+            color: #6b7280;
+        }
+    </style>
+</head>
+<body>
+    <div class="admin-header">
+        <img src="Logo.png" alt="Hanti Logo" class="admin-logo">
+        <h1 class="admin-title">Admin Dashboard</h1>
+    </div>
+    
+    <div class="container">
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-icon">
+                    <i class="fas fa-users"></i>
+                </div>
+                <div class="stat-number" id="totalCount">-</div>
+                <div class="stat-label">Total Signups</div>
+            </div>
+            
+            <div class="stat-card">
+                <div class="stat-icon">
+                    <i class="fas fa-home"></i>
+                </div>
+                <div class="stat-number" id="buyerCount">-</div>
+                <div class="stat-label">Buyers</div>
+            </div>
+            
+            <div class="stat-card">
+                <div class="stat-icon">
+                    <i class="fas fa-building"></i>
+                </div>
+                <div class="stat-number" id="sellerCount">-</div>
+                <div class="stat-label">Sellers</div>
+            </div>
+            
+            <div class="stat-card">
+                <div class="stat-icon">
+                    <i class="fas fa-chart-line"></i>
+                </div>
+                <div class="stat-number" id="investorCount">-</div>
+                <div class="stat-label">Investors</div>
+            </div>
+        </div>
+        
+        <div class="data-section">
+            <div class="section-header">
+                <h2 class="section-title">Waitlist Members</h2>
+                <button class="export-btn" onclick="exportCSV()">
+                    <i class="fas fa-download"></i> Export CSV
+                </button>
+            </div>
+            
+            <div class="filter-bar">
+                <label>Filter by role:</label>
+                <select class="filter-select" id="roleFilter" onchange="filterByRole()">
+                    <option value="">All Roles</option>
+                    <option value="buyer">Buyers</option>
+                    <option value="seller">Sellers</option>
+                    <option value="investor">Investors</option>
+                </select>
+            </div>
+            
+            <table class="email-table">
+                <thead>
+                    <tr>
+                        <th>Email</th>
+                        <th>Role</th>
+                        <th>Date Joined</th>
+                    </tr>
+                </thead>
+                <tbody id="emailTableBody">
+                    <tr>
+                        <td colspan="3" class="loading">Loading...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        let allEmails = [];
+        
+        async function loadData() {
+            try {
+                const response = await fetch('/api/admin/waitlist');
+                const data = await response.json();
+                allEmails = data;
+                
+                updateStats(data);
+                displayEmails(data);
+                
+            } catch (error) {
+                console.error('Error loading data:', error);
+                document.getElementById('emailTableBody').innerHTML = 
+                    '<tr><td colspan="3" class="loading">Error loading data</td></tr>';
+            }
+        }
+        
+        function updateStats(emails) {
+            const total = emails.length;
+            const buyers = emails.filter(e => e.role === 'buyer').length;
+            const sellers = emails.filter(e => e.role === 'seller').length;
+            const investors = emails.filter(e => e.role === 'investor').length;
+            
+            document.getElementById('totalCount').textContent = total;
+            document.getElementById('buyerCount').textContent = buyers;
+            document.getElementById('sellerCount').textContent = sellers;
+            document.getElementById('investorCount').textContent = investors;
+        }
+        
+        function displayEmails(emails) {
+            const tbody = document.getElementById('emailTableBody');
+            
+            if (emails.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="3" class="loading">No signups yet</td></tr>';
+                return;
+            }
+            
+            const html = emails.map(email => `
+                <tr>
+                    <td>${email.email}</td>
+                    <td>
+                        <span class="role-badge role-${email.role || 'unknown'}">
+                            ${email.role ? email.role.charAt(0).toUpperCase() + email.role.slice(1) : 'Unknown'}
+                        </span>
+                    </td>
+                    <td>${new Date(email.created_at).toLocaleDateString()}</td>
+                </tr>
+            `).join('');
+            
+            tbody.innerHTML = html;
+        }
+        
+        function filterByRole() {
+            const filter = document.getElementById('roleFilter').value;
+            const filtered = filter ? allEmails.filter(e => e.role === filter) : allEmails;
+            displayEmails(filtered);
+        }
+        
+        function exportCSV() {
+            const filter = document.getElementById('roleFilter').value;
+            const data = filter ? allEmails.filter(e => e.role === filter) : allEmails;
+            
+            const csv = [
+                ['Email', 'Role', 'Date Joined'],
+                ...data.map(email => [
+                    email.email,
+                    email.role || 'Unknown',
+                    new Date(email.created_at).toLocaleDateString()
+                ])
+            ].map(row => row.join(',')).join('\n');
+            
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `hanti-waitlist-${new Date().toISOString().split('T')[0]}.csv`;
+            a.click();
+            window.URL.revokeObjectURL(url);
+        }
+        
+        // Load data on page load
+        loadData();
+    </script>
+</body>
+</html>
