@@ -32,20 +32,41 @@ const db = new sqlite3.Database('./waitlist.db', (err) => {
         console.error('Error opening database:', err);
     } else {
         console.log('Connected to SQLite database');
-        
+
         // Create waitlist table if it doesn't exist
         db.run(`CREATE TABLE IF NOT EXISTS waitlist (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             email TEXT UNIQUE NOT NULL,
             role TEXT NOT NULL,
+            first_name TEXT,
+            last_name TEXT,
+            phone TEXT,
             created_at DATETIME DEFAULT (datetime('now', 'localtime')),
             notified BOOLEAN DEFAULT FALSE
         )`);
-        
-        // Add role column if it doesn't exist (for existing databases)
+
+        // Add columns if they don't exist (for existing databases)
         db.run(`ALTER TABLE waitlist ADD COLUMN role TEXT`, (err) => {
             if (err && !err.message.includes('duplicate column name')) {
                 console.error('Error adding role column:', err);
+            }
+        });
+
+        db.run(`ALTER TABLE waitlist ADD COLUMN first_name TEXT`, (err) => {
+            if (err && !err.message.includes('duplicate column name')) {
+                console.error('Error adding first_name column:', err);
+            }
+        });
+
+        db.run(`ALTER TABLE waitlist ADD COLUMN last_name TEXT`, (err) => {
+            if (err && !err.message.includes('duplicate column name')) {
+                console.error('Error adding last_name column:', err);
+            }
+        });
+
+        db.run(`ALTER TABLE waitlist ADD COLUMN phone TEXT`, (err) => {
+            if (err && !err.message.includes('duplicate column name')) {
+                console.error('Error adding phone column:', err);
             }
         });
     }
@@ -73,7 +94,7 @@ const getWelcomeEmailHTML = (email, role) => {
         seller: "As a property seller, you'll be first to list on our platform with our verified listing system and market intelligence tools.",
         investor: "As a property investor, you'll get access to market analytics and investment opportunities across African real estate markets."
     };
-    
+
     return `
     <!DOCTYPE html>
     <html>
@@ -205,80 +226,104 @@ app.get('/', (req, res) => {
 // Waitlist signup endpoint
 app.post('/api/waitlist', async (req, res) => {
     try {
-        const { email, role } = req.body;
-        
+        const { email, role, first_name, last_name, phone } = req.body;
+
         // Validate email
         if (!email || !validator.isEmail(email)) {
-            return res.status(400).json({ 
-                error: 'Please provide a valid email address' 
+            return res.status(400).json({
+                error: 'Please provide a valid email address'
             });
         }
-        
+
         // Validate role
         const validRoles = ['buyer', 'seller', 'investor'];
         if (!role || !validRoles.includes(role.toLowerCase())) {
-            return res.status(400).json({ 
-                error: 'Please select a valid role (Buyer, Seller, or Investor)' 
+            return res.status(400).json({
+                error: 'Please select a valid role (Buyer, Seller, or Investor)'
             });
         }
-        
-        // Normalize email and role
+
+        // Validate names (optional - only validate if provided)
+        if (first_name && first_name.trim() === '') {
+            return res.status(400).json({
+                error: 'First name cannot be empty'
+            });
+        }
+
+        if (last_name && last_name.trim() === '') {
+            return res.status(400).json({
+                error: 'Last name cannot be empty'
+            });
+        }
+
+        // Validate phone (optional - only validate if provided)
+        if (phone && phone.trim() === '') {
+            return res.status(400).json({
+                error: 'Phone number cannot be empty'
+            });
+        }
+
+        // Normalize data
         const normalizedEmail = validator.normalizeEmail(email);
         const normalizedRole = role.toLowerCase();
-        
+        const normalizedFirstName = first_name ? first_name.trim() : null;
+        const normalizedLastName = last_name ? last_name.trim() : null;
+        const normalizedPhone = phone ? phone.trim() : null;
+
         // Check if email already exists
         db.get('SELECT email FROM waitlist WHERE email = ?', [normalizedEmail], async (err, row) => {
             if (err) {
                 console.error('Database error:', err);
-                return res.status(500).json({ 
-                    error: 'Internal server error' 
+                return res.status(500).json({
+                    error: 'Internal server error'
                 });
             }
-            
+
             if (row) {
-                return res.status(400).json({ 
-                    error: 'Email already registered in waitlist' 
+                return res.status(400).json({
+                    error: 'Email already registered in waitlist'
                 });
             }
-            
-            // Add email and role to database
-            db.run('INSERT INTO waitlist (email, role) VALUES (?, ?)', [normalizedEmail, normalizedRole], async function(err) {
-                if (err) {
-                    console.error('Database insert error:', err);
-                    return res.status(500).json({ 
-                        error: 'Failed to add to waitlist' 
+
+            // Add email, role, names, and phone to database
+            db.run('INSERT INTO waitlist (email, role, first_name, last_name, phone) VALUES (?, ?, ?, ?, ?)',
+                [normalizedEmail, normalizedRole, normalizedFirstName, normalizedLastName, normalizedPhone], async function (err) {
+                    if (err) {
+                        console.error('Database insert error:', err);
+                        return res.status(500).json({
+                            error: 'Failed to add to waitlist'
+                        });
+                    }
+
+                    // Send welcome email
+                    try {
+                        const transporter = createEmailTransporter();
+
+                        const mailOptions = {
+                            from: process.env.FROM_EMAIL || 'noreply@hanti.com',
+                            to: normalizedEmail,
+                            subject: 'Welcome to Hanti Waitlist! 🏠',
+                            html: getWelcomeEmailHTML(normalizedEmail, normalizedRole)
+                        };
+
+                        await transporter.sendMail(mailOptions);
+                        console.log('Welcome email sent to:', normalizedEmail);
+                    } catch (emailError) {
+                        console.error('Email sending error:', emailError);
+                        // Don't fail the request if email fails
+                    }
+
+                    res.status(201).json({
+                        message: 'Successfully added to waitlist',
+                        id: this.lastID
                     });
-                }
-                
-                // Send welcome email
-                try {
-                    const transporter = createEmailTransporter();
-                    
-                    const mailOptions = {
-                        from: process.env.FROM_EMAIL || 'noreply@hanti.com',
-                        to: normalizedEmail,
-                        subject: 'Welcome to Hanti Waitlist! 🏠',
-                        html: getWelcomeEmailHTML(normalizedEmail, normalizedRole)
-                    };
-                    
-                    await transporter.sendMail(mailOptions);
-                    console.log('Welcome email sent to:', normalizedEmail);
-                } catch (emailError) {
-                    console.error('Email sending error:', emailError);
-                    // Don't fail the request if email fails
-                }
-                
-                res.status(201).json({ 
-                    message: 'Successfully added to waitlist',
-                    id: this.lastID
                 });
-            });
         });
-        
+
     } catch (error) {
         console.error('Waitlist signup error:', error);
-        res.status(500).json({ 
-            error: 'Internal server error' 
+        res.status(500).json({
+            error: 'Internal server error'
         });
     }
 });
@@ -295,7 +340,7 @@ app.get('/api/admin/waitlist-count', (req, res) => {
 
 // Admin endpoint to get all waitlist emails
 app.get('/api/admin/waitlist', (req, res) => {
-    db.all('SELECT id, email, role, created_at, notified FROM waitlist ORDER BY created_at DESC', (err, rows) => {
+    db.all('SELECT id, email, role, first_name, last_name, phone, created_at, notified FROM waitlist ORDER BY created_at DESC', (err, rows) => {
         if (err) {
             return res.status(500).json({ error: 'Database error' });
         }
@@ -315,11 +360,11 @@ app.post('/admin/clear', (req, res) => {
 
 // Serve admin page with server-side rendering
 app.get('/admin', (req, res) => {
-    db.all('SELECT id, email, created_at FROM waitlist ORDER BY created_at DESC', (err, rows) => {
+    db.all('SELECT id, email, role, first_name, last_name, phone, created_at FROM waitlist ORDER BY created_at DESC', (err, rows) => {
         if (err) {
             return res.status(500).send('Database error');
         }
-        
+
         let emailTable = '';
         if (rows.length > 0) {
             emailTable = `
@@ -327,45 +372,54 @@ app.get('/admin', (req, res) => {
                     <thead>
                         <tr>
                             <th>#</th>
+                            <th>Name</th>
                             <th>Email Address</th>
+                            <th>Phone</th>
+                            <th>Role</th>
                             <th>Date</th>
                             <th>Time</th>
                         </tr>
                     </thead>
                     <tbody>
                         ${rows.map((email, index) => {
-                            // Parse the SQLite datetime and convert to EDT (GMT-4)
-                            const date = new Date(email.created_at);
-                            // Subtract 4 hours to convert from UTC to EDT (Ohio time)
-                            const easternDate = new Date(date.getTime() - (4 * 60 * 60 * 1000));
-                            
-                            const dateStr = easternDate.toLocaleDateString('en-US', {
-                                year: 'numeric',
-                                month: 'short',
-                                day: 'numeric'
-                            });
-                            const timeStr = easternDate.toLocaleTimeString('en-US', {
-                                hour: 'numeric',
-                                minute: '2-digit',
-                                second: '2-digit',
-                                hour12: true
-                            });
-                            return `
+                // Parse the SQLite datetime and convert to EDT (GMT-4)
+                const date = new Date(email.created_at);
+                // Subtract 4 hours to convert from UTC to EDT (Ohio time)
+                const easternDate = new Date(date.getTime() - (4 * 60 * 60 * 1000));
+
+                const dateStr = easternDate.toLocaleDateString('en-US', {
+                    year: 'numeric',
+                    month: 'short',
+                    day: 'numeric'
+                });
+                const timeStr = easternDate.toLocaleTimeString('en-US', {
+                    hour: 'numeric',
+                    minute: '2-digit',
+                    second: '2-digit',
+                    hour12: true
+                });
+                const fullName = [email.first_name, email.last_name].filter(Boolean).join(' ') || 'N/A';
+                const roleDisplay = email.role ? email.role.charAt(0).toUpperCase() + email.role.slice(1) : 'N/A';
+                const phoneDisplay = email.phone || 'N/A';
+                return `
                                 <tr>
                                     <td>${index + 1}</td>
+                                    <td><strong>${fullName}</strong></td>
                                     <td><strong>${email.email}</strong></td>
+                                    <td>${phoneDisplay}</td>
+                                    <td><span class="role-badge role-${email.role || 'unknown'}">${roleDisplay}</span></td>
                                     <td>${dateStr}</td>
                                     <td>${timeStr}</td>
                                 </tr>
                             `;
-                        }).join('')}
+            }).join('')}
                     </tbody>
                 </table>
             `;
         } else {
             emailTable = '<div class="no-emails">No emails yet</div>';
         }
-        
+
         const html = `
         <!DOCTYPE html>
         <html>
@@ -431,18 +485,39 @@ app.get('/admin', (req, res) => {
                     border-bottom: 3px solid #15803d;
                 }
                 .email-table th:first-child {
-                    width: 80px;
+                    width: 50px;
                     text-align: center;
                 }
                 .email-table th:nth-child(2) {
-                    width: 40%;
+                    width: 18%;
                 }
                 .email-table th:nth-child(3) {
                     width: 25%;
                 }
                 .email-table th:nth-child(4) {
-                    width: 25%;
+                    width: 15%;
                 }
+                .email-table th:nth-child(5) {
+                    width: 12%;
+                }
+                .email-table th:nth-child(6) {
+                    width: 15%;
+                }
+                .email-table th:nth-child(7) {
+                    width: 15%;
+                }
+                .role-badge {
+                    padding: 4px 8px;
+                    border-radius: 12px;
+                    font-size: 11px;
+                    font-weight: 600;
+                    text-transform: uppercase;
+                    letter-spacing: 0.5px;
+                }
+                .role-buyer { background: #dbeafe; color: #1e40af; }
+                .role-seller { background: #dcfce7; color: #166534; }
+                .role-investor { background: #fef3c7; color: #92400e; }
+                .role-unknown { background: #f3f4f6; color: #6b7280; }
                 .email-table td {
                     padding: 18px 25px;
                     border-bottom: 1px solid #e5e7eb;
@@ -526,7 +601,7 @@ app.get('/admin', (req, res) => {
         </body>
         </html>
         `;
-        
+
         res.send(html);
     });
 });
@@ -539,11 +614,11 @@ app.post('/api/admin/notify-launch', async (req, res) => {
             if (err) {
                 return res.status(500).json({ error: 'Database error' });
             }
-            
+
             const transporter = createEmailTransporter();
             let successCount = 0;
             let errorCount = 0;
-            
+
             // Send launch email to all waitlist members
             for (const row of rows) {
                 try {
@@ -553,19 +628,19 @@ app.post('/api/admin/notify-launch', async (req, res) => {
                         subject: '🎉 Hanti is Now Live - Your Early Access is Ready!',
                         html: getLaunchEmailHTML()
                     };
-                    
+
                     await transporter.sendMail(mailOptions);
                     successCount++;
-                    
+
                     // Mark as notified
                     db.run('UPDATE waitlist SET notified = TRUE WHERE email = ?', [row.email]);
-                    
+
                 } catch (emailError) {
                     console.error('Failed to send launch email to:', row.email, emailError);
                     errorCount++;
                 }
             }
-            
+
             res.json({
                 message: 'Launch notification process completed',
                 success: successCount,
@@ -573,7 +648,7 @@ app.post('/api/admin/notify-launch', async (req, res) => {
                 total: rows.length
             });
         });
-        
+
     } catch (error) {
         console.error('Launch notification error:', error);
         res.status(500).json({ error: 'Internal server error' });

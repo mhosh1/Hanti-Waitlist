@@ -1,5 +1,5 @@
 // Smooth scrolling for navigation links
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
     // Smooth scrolling for anchor links
     document.querySelectorAll('a[href^="#"]').forEach(anchor => {
         anchor.addEventListener('click', function (e) {
@@ -16,7 +16,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Navbar background on scroll
     const navbar = document.querySelector('.navbar');
-    window.addEventListener('scroll', function() {
+    window.addEventListener('scroll', function () {
         if (window.scrollY > 100) {
             navbar.style.background = 'rgba(255, 255, 255, 0.98)';
             navbar.style.boxShadow = '0 2px 20px rgba(0, 0, 0, 0.1)';
@@ -30,57 +30,94 @@ document.addEventListener('DOMContentLoaded', function() {
     const waitlistForm = document.getElementById('waitlistForm');
     const successMessage = document.getElementById('successMessage');
 
-    waitlistForm.addEventListener('submit', async function(e) {
+    waitlistForm.addEventListener('submit', async function (e) {
         e.preventDefault();
-        
+
         const email = document.getElementById('email').value;
         const role = document.getElementById('role').value;
+        const firstName = document.getElementById('firstName').value.trim();
+        const lastName = document.getElementById('lastName').value.trim();
+        const phone = document.getElementById('phone').value.trim();
         const submitBtn = document.querySelector('.submit-btn');
         const btnText = document.querySelector('.btn-text');
-        
+
         // Validate role selection
         if (!role) {
             alert('Please select your interest (Buyer, Seller, or Investor)');
             return;
         }
-        
+
         // Disable button and show loading state
         submitBtn.disabled = true;
         btnText.textContent = 'Joining...';
-        
+
         try {
+            const requestBody = {
+                email: email,
+                role: role
+            };
+
+            // Add optional fields if provided
+            if (firstName) requestBody.first_name = firstName;
+            if (lastName) requestBody.last_name = lastName;
+            if (phone) requestBody.phone = phone;
+
             const response = await fetch('/api/waitlist', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ 
-                    email: email,
-                    role: role 
-                })
+                body: JSON.stringify(requestBody)
             });
 
             if (response.ok) {
+                const result = await response.json();
+
+                // Personalize the success message
+                const successTitle = document.querySelector('#successMessage h3');
+                const successSubtitle = document.querySelector('#successMessage p');
+
+                if (firstName && lastName) {
+                    successTitle.textContent = `Welcome to Hanti, ${firstName} ${lastName}!`;
+                    successSubtitle.textContent = `Your information was saved! Thank you for joining our waitlist! 🎉`;
+                } else if (firstName) {
+                    successTitle.textContent = `Welcome to Hanti, ${firstName}!`;
+                    successSubtitle.textContent = `Your information was saved! Thank you for joining our waitlist! 🎉`;
+                } else {
+                    successTitle.textContent = `Your information was saved!`;
+                    successSubtitle.textContent = `Thank you for joining the Hanti waitlist! 🎉`;
+                }
+
                 // Hide form and show success message
                 waitlistForm.style.display = 'none';
-                successMessage.style.display = 'flex';
-                
-                // Add animation to success message
+                successMessage.style.display = 'block';
+
+                // Add smooth animation to success message
                 successMessage.style.opacity = '0';
-                successMessage.style.transform = 'translateY(20px)';
-                
+                successMessage.style.transform = 'translateY(30px) scale(0.95)';
+
                 setTimeout(() => {
-                    successMessage.style.transition = 'all 0.5s ease';
+                    successMessage.style.transition = 'all 0.6s cubic-bezier(0.4, 0, 0.2, 1)';
                     successMessage.style.opacity = '1';
-                    successMessage.style.transform = 'translateY(0)';
+                    successMessage.style.transform = 'translateY(0) scale(1)';
                 }, 100);
-                
+
+                // Optional: Add confetti or celebration effect
+                setTimeout(() => {
+                    // Add a subtle pulse effect to the success message
+                    successMessage.style.transform = 'translateY(0) scale(1.02)';
+                    setTimeout(() => {
+                        successMessage.style.transform = 'translateY(0) scale(1)';
+                    }, 200);
+                }, 800);
+
             } else {
-                throw new Error('Failed to join waitlist');
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Failed to join waitlist');
             }
         } catch (error) {
             console.error('Error:', error);
-            alert('Sorry, there was an error joining the waitlist. Please try again.');
+            alert(`Sorry, there was an error joining the waitlist: ${error.message}`);
         } finally {
             // Reset button state
             submitBtn.disabled = false;
@@ -94,7 +131,7 @@ document.addEventListener('DOMContentLoaded', function() {
         rootMargin: '0px 0px -50px 0px'
     };
 
-    const observer = new IntersectionObserver(function(entries) {
+    const observer = new IntersectionObserver(function (entries) {
         entries.forEach(entry => {
             if (entry.isIntersecting) {
                 entry.target.style.opacity = '1';
@@ -135,10 +172,10 @@ function validateEmail(email) {
 }
 
 // Add real-time email validation
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
     const emailInput = document.getElementById('email');
-    
-    emailInput.addEventListener('input', function() {
+
+    emailInput.addEventListener('input', function () {
         const email = this.value;
         if (email && !validateEmail(email)) {
             this.style.borderColor = '#ef4444';
