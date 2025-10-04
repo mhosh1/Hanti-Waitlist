@@ -192,7 +192,7 @@ pm2 start server.js --name "hanti-website"
 - **Zack** - Backend
 - **Ahmed** - Frontend + UI Testing
 - **Mohamed Hosh** - System Design + Product Strategy
-- **Abdurahman** - Research + Data Science
+- **Abdurahman** - CEO + Lead Software Engineer 
 
 ## Vision & Mission
 
